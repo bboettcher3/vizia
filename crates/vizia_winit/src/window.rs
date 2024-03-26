@@ -4,7 +4,6 @@ use std::ffi::CString;
 use std::num::NonZeroU32;
 
 use crate::convert::cursor_icon_to_cursor_icon;
-// use femtovg::{renderer::OpenGl, Canvas, Color};
 
 #[cfg(not(target_arch = "wasm32"))]
 use gl_rs as gl;
@@ -224,18 +223,6 @@ impl Window {
                 .expect("Failed to set vsync");
         }
 
-        // Build the femtovg renderer
-        // let renderer = unsafe {
-        //     OpenGl::new_from_function_cstr(|s| gl_display.get_proc_address(s) as *const _)
-        // }
-        // .expect("Cannot create renderer");
-
-        // let mut canvas = Canvas::new(renderer).expect("Failed to create canvas");
-
-        // let size = window.inner_size();
-        // canvas.set_size(size.width, size.height, 1.0);
-        // canvas.clear_rect(0, 0, size.width, size.height, Color::rgb(255, 80, 80));
-
         // Build skia renderer
         gl::load_with(|s| {
             gl_config.display().get_proc_address(CString::new(s).unwrap().as_c_str())
@@ -289,7 +276,7 @@ impl Window {
         &self.window
     }
 
-    pub fn resize(&mut self, size: PhysicalSize<u32>, surface: &mut Surface) {
+    pub fn resize(&mut self, size: PhysicalSize<u32>, surface: &mut (Surface, Surface)) {
         let fb_info = {
             let mut fboid: GLint = 0;
             unsafe { gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut fboid) };
@@ -301,13 +288,16 @@ impl Window {
             }
         };
 
-        *surface = create_surface(
+        surface.0 = create_surface(
             &self.window,
             fb_info,
             &mut self.gr_context,
             self.gl_config.num_samples() as usize,
             self.gl_config.stencil_size() as usize,
         );
+
+        surface.1 =
+            surface.0.new_surface_with_dimensions((size.width as i32, size.height as i32)).unwrap();
 
         if size.width != 0 && size.height != 0 {
             self.gl_surface.resize(
